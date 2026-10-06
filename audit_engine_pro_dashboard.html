@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Engine Pro - Financial Audit Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            900: '#0b132b',
+                            800: '#0f172a',
+                            700: '#1a2238',
+                            600: '#151e33',
+                            500: '#1e293b',
+                            400: '#334155'
+                        },
+                        audit: {
+                            green: '#10b981',
+                            yellow: '#f59e0b',
+                            red: '#ef4444',
+                            accent: '#3b82f6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX Parser) CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b132b;
+            color: #f8fafc;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-navy-900 text-slate-100 flex flex-col antialiased">
+
+    <!-- Top Header / Navigation -->
+    <header class="bg-navy-800 border-b border-navy-500/50 px-6 py-4 sticky top-0 z-50 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-blue-600/20 border border-blue-500/30 rounded-xl text-blue-400">
+                <i class="fa-solid fa-shield-halved text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    AUDIT ENGINE PRO
+                    <span class="text-xs font-semibold bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20">Enterprise v3.4</span>
+                </h1>
+                <p class="text-xs text-slate-400">Defensible Anomaly Detection & Financial Audit System</p>
+            </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
+            <button onclick="loadSampleData()" class="text-xs bg-navy-600 hover:bg-navy-500 text-blue-300 font-medium px-4 py-2 rounded-lg border border-blue-500/30 hover:border-blue-400 transition flex items-center gap-2">
+                <i class="fa-solid fa-bolt text-amber-400"></i> Load Sample Test Batch
+            </button>
+            <div class="h-6 w-px bg-navy-500/50 hidden md:block"></div>
+            <div class="flex items-center space-x-2 text-xs text-slate-400 bg-navy-900/60 px-3 py-1.5 rounded-lg border border-navy-500">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Audit Rules Active</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1920px] mx-auto w-full">
+
+        <!-- Left Sidebar: Controls & Upload File Panel -->
+        <aside class="lg:col-span-4 xl:col-span-3 space-y-6">
+
+            <!-- Data Sources Panel -->
+            <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-folder-open text-blue-400"></i> Data Import Channels
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Master Vendors File -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">
+                            1. Registered Vendors Master <span class="text-slate-500">(Optional)</span>
+                        </label>
+                        <div class="file-input-wrapper">
+                            <button id="btn-vendor-file" class="w-full text-left bg-navy-800/80 hover:bg-navy-800 border border-navy-500 rounded-xl px-3 py-2.5 text-xs text-slate-300 flex items-center justify-between transition">
+                                <span id="label-vendor" class="truncate text-slate-400">Choose Vendor File (.xlsx / .csv)</span>
+                                <i class="fa-solid fa-upload text-slate-400 ml-2"></i>
+                            </button>
+                            <input type="file" id="file-vendor" accept=".xlsx, .xls, .csv" onchange="handleFileSelect(this, 'label-vendor')">
+                        </div>
+                    </div>
+
+                    <!-- Historical Logs File -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">
+                            2. Historical Transaction Logs <span class="text-slate-500">(Optional)</span>
+                        </label>
+                        <div class="file-input-wrapper">
+                            <button id="btn-history-file" class="w-full text-left bg-navy-800/80 hover:bg-navy-800 border border-navy-500 rounded-xl px-3 py-2.5 text-xs text-slate-300 flex items-center justify-between transition">
+                                <span id="label-history" class="truncate text-slate-400">Choose History File (.xlsx / .csv)</span>
+                                <i class="fa-solid fa-upload text-slate-400 ml-2"></i>
+                            </button>
+                            <input type="file" id="file-history" accept=".xlsx, .xls, .csv" onchange="handleFileSelect(this, 'label-history')">
+                        </div>
+                    </div>
+
+                    <!-- Current Batch File -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">
+                            3. Current Batch Stream <span class="text-amber-400">*</span>
+                        </label>
+                        <div class="file-input-wrapper">
+                            <button id="btn-batch-file" class="w-full text-left bg-navy-800/80 hover:bg-navy-800 border border-amber-500/40 rounded-xl px-3 py-2.5 text-xs text-slate-200 flex items-center justify-between transition">
+                                <span id="label-batch" class="truncate text-slate-300 font-medium">Choose Audit Batch (.xlsx / .csv)</span>
+                                <i class="fa-solid fa-file-invoice-dollar text-amber-400 ml-2"></i>
+                            </button>
+                            <input type="file" id="file-batch" accept=".xlsx, .xls, .csv" onchange="handleFileSelect(this, 'label-batch')">
+                        </div>
+                    </div>
+
+                    <!-- Run Audit Button -->
+                    <button onclick="executeAuditEngine()" class="w-full mt-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play text-xs"></i> RUN AUDIT ENGINE
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Threshold Rules Config -->
+            <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-indigo-400"></i> Dynamic Threshold Rules
+                </h2>
+
+                <div class="space-y-3 text-xs">
+                    <div class="flex justify-between items-center bg-navy-800/50 p-2.5 rounded-lg border border-navy-500/40">
+                        <span class="text-slate-300">Exposure Limit ($)</span>
+                        <input type="number" id="limit-exposure" value="1000" class="w-20 bg-navy-900 border border-navy-500 rounded px-2 py-1 text-right text-slate-100 focus:outline-none focus:border-blue-400">
+                    </div>
+
+                    <div class="bg-navy-800/50 p-3 rounded-lg border border-navy-500/40 space-y-2">
+                        <div class="font-medium text-slate-300 border-b border-navy-500/50 pb-1">Penalty Score Matrix</div>
+                        <div class="flex justify-between text-slate-400"><span>Unregistered Vendor:</span> <span class="font-mono text-rose-400">+50</span></div>
+                        <div class="flex justify-between text-slate-400"><span>Duplicate Invoice Ref:</span> <span class="font-mono text-rose-400">+40</span></div>
+                        <div class="flex justify-between text-slate-400"><span>Off-Hours (Before 7am / After 7pm):</span> <span class="font-mono text-amber-400">+20</span></div>
+                        <div class="flex justify-between text-slate-400"><span>Over Exposure Limit (&gt; $1000):</span> <span class="font-mono text-amber-400">+10</span></div>
+                    </div>
+
+                    <div class="bg-navy-800/50 p-3 rounded-lg border border-navy-500/40 space-y-1 text-[11px]">
+                        <div class="font-medium text-slate-300 mb-1">Score Band Setup:</div>
+                        <div class="flex items-center gap-2 text-emerald-400"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Ideal / Clean: &lt; 20</div>
+                        <div class="flex items-center gap-2 text-amber-400"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Mid-Risk Anomaly: 20 – 49</div>
+                        <div class="flex items-center gap-2 text-rose-400"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Verification Required: &ge; 50</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Smart Header Recovery Info Box -->
+            <div class="bg-blue-950/40 border border-blue-500/20 rounded-2xl p-4 text-xs text-blue-200/80 space-y-1">
+                <div class="font-semibold text-blue-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles text-blue-400"></i> Smart Header Recovery Active
+                </div>
+                <p class="text-[11px] leading-relaxed text-slate-400">
+                    The parser dynamically scans the first 10 rows of uploaded spreadsheets to locate data headers automatically, overcoming title padding, blank lines, or header offset shifts.
+                </p>
+            </div>
+        </aside>
+
+        <!-- Right Section: Dashboard Metrics & Main Ledger Table -->
+        <section class="lg:col-span-8 xl:col-span-9 space-y-6">
+
+            <!-- Top Metric Cards Row -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Total Parsed -->
+                <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
+                    <div class="text-xs font-medium text-slate-400 flex justify-between items-center">
+                        Transactions Parsed
+                        <i class="fa-solid fa-receipt text-slate-500"></i>
+                    </div>
+                    <div id="stat-total-tx" class="text-2xl font-bold text-white mt-2">0</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Batch total size</div>
+                </div>
+
+                <!-- Batch Sum Total -->
+                <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
+                    <div class="text-xs font-medium text-slate-400 flex justify-between items-center">
+                        Batch Sum Total
+                        <i class="fa-solid fa-dollar-sign text-slate-500"></i>
+                    </div>
+                    <div id="stat-sum-total" class="text-2xl font-bold text-blue-400 mt-2">$0.00</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Cumulative financial exposure</div>
+                </div>
+
+                <!-- Medium Risk Flags -->
+                <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
+                    <div class="text-xs font-medium text-slate-400 flex justify-between items-center">
+                        Medium Risk Flags
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                    </div>
+                    <div id="stat-mid-risk" class="text-2xl font-bold text-amber-400 mt-2">0</div>
+                    <div class="text-[11px] text-amber-400/80 mt-1">Score band 20 – 49</div>
+                </div>
+
+                <!-- High Risk Action Items -->
+                <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
+                    <div class="text-xs font-medium text-slate-400 flex justify-between items-center">
+                        Verification Required
+                        <i class="fa-solid fa-circle-exclamation text-rose-500"></i>
+                    </div>
+                    <div id="stat-high-risk" class="text-2xl font-bold text-rose-500 mt-2">0</div>
+                    <div class="text-[11px] text-rose-400/80 mt-1">Critical threshold (&ge; 50)</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Doughnut Chart: Risk Distribution -->
+                <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-5 shadow-lg backdrop-blur-sm flex flex-col justify-between">
+                    <h3 class="text-sm font-semibold text-slate-200 mb-3 flex items-center justify-between">
+                        <span class="flex items-center gap-2"><i class="fa-chart-pie text-blue-400"></i> Audit Status Risk Distribution</span>
+                    </h3>
+                    <div class="relative w-full h-52 flex items-center justify-center">
+                        <canvas id="chartDistribution"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bar Chart: Score Density Spectrum -->
+                <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl p-5 shadow-lg backdrop-blur-sm flex flex-col justify-between">
+                    <h3 class="text-sm font-semibold text-slate-200 mb-3 flex items-center justify-between">
+                        <span class="flex items-center gap-2"><i class="fa-chart-column text-indigo-400"></i> Score Density Spectrum</span>
+                    </h3>
+                    <div class="relative w-full h-52">
+                        <canvas id="chartSpectrum"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Ledger Container -->
+            <div class="bg-navy-600/80 border border-navy-500/60 rounded-2xl shadow-xl backdrop-blur-sm overflow-hidden">
+
+                <!-- Table Controls Header -->
+                <div class="p-4 md:p-5 border-b border-navy-500/60 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-navy-700/40">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-blue-400"></i> Prioritized Audit Ledger Output
+                        </h2>
+                        <p class="text-xs text-slate-400">Filter, search, and drill down into flagged anomalies</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-center gap-3">
+                        <!-- Search Bar -->
+                        <div class="relative w-full sm:w-60">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+                            <input type="text" id="search-input" oninput="filterTableData()" placeholder="Search invoice, vendor..." class="w-full bg-navy-800 border border-navy-500 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-400 transition">
+                        </div>
+
+                        <!-- Status Category Filter Dropdown -->
+                        <select id="filter-category" onchange="filterTableData()" class="w-full sm:w-auto bg-navy-800 border border-navy-500 text-xs text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-400 transition">
+                            <option value="ALL">All Records</option>
+                            <option value="IDEAL">Standard / Ideal (&lt; 20)</option>
+                            <option value="MID">Anomaly Detected / Mid-Risk (20-49)</option>
+                            <option value="HIGH">Verification Required (50+)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Ledger Table Scroll Area -->
+                <div class="overflow-x-auto max-h-[500px]">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-navy-800/90 text-slate-400 text-[11px] uppercase tracking-wider font-semibold sticky top-0 z-10 backdrop-blur-md border-b border-navy-500">
+                            <tr>
+                                <th class="py-3.5 px-4">Invoice #</th>
+                                <th class="py-3.5 px-4">Vendor ID</th>
+                                <th class="py-3.5 px-4 text-right">Amount ($)</th>
+                                <th class="py-3.5 px-4 text-center">Timestamp / Hour</th>
+                                <th class="py-3.5 px-4 text-center">Anomaly Score</th>
+                                <th class="py-3.5 px-4 text-center">Defensible Audit Status</th>
+                                <th class="py-3.5 px-4">Audit Triggers / Flags</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledger-tbody" class="divide-y divide-navy-500/40 text-xs">
+                            <tr>
+                                <td colspan="7" class="py-12 text-center text-slate-400">
+                                    <div class="flex flex-col items-center justify-center space-y-2">
+                                        <i class="fa-solid fa-folder-open text-3xl text-slate-600"></i>
+                                        <p>No audit records loaded yet.</p>
+                                        <p class="text-[11px] text-slate-500">Upload batch file on the left or click "Load Sample Test Batch"</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- JavaScript Logic & Parser Engine -->
+    <script>
+        // State management
+        let vendorMasterSet = new Set();
+        let historicalInvoiceSet = new Set();
+        let currentBatchRecords = [];
+        let processedAuditLedger = [];
+
+        // Charts instances
+        let chartDist = null;
+        let chartSpec = null;
+
+        // Initialize Charts on Page Load
+        window.onload = function() {
+            initCharts();
+        };
+
+        // File selection UI feedback helper
+        function handleFileSelect(input, labelId) {
+            const label = document.getElementById(labelId);
+            if (input.files && input.files[0]) {
+                label.innerText = input.files[0].name;
+                label.classList.remove('text-slate-400');
+                label.classList.add('text-blue-300', 'font-medium');
+            }
+        }
+
+        // --- CRITICAL SMART HEADER SCANNER & PARSER ---
+        async function parseSpreadsheet(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+
+                        // Convert to raw matrix (2D array) to inspect header rows
+                        const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+                        if (!rawMatrix || rawMatrix.length === 0) {
+                            resolve([]);
+                            return;
+                        }
+
+                        // Scan first 10 rows to locate header index
+                        let headerRowIdx = 0;
+                        const knownHeaderKeywords = ['vendor', 'invoice', 'amount', 'batch', 'time', 'hour', 'date', 'status', 'id', 'ref'];
+
+                        for (let i = 0; i < Math.min(10, rawMatrix.length); i++) {
+                            const row = rawMatrix[i];
+                            if (Array.isArray(row)) {
+                                const matchCount = row.filter(cell => {
+                                    const str = String(cell).toLowerCase().trim();
+                                    return knownHeaderKeywords.some(kw => str.includes(kw));
+                                }).length;
+
+                                if (matchCount >= 1) { // Found probable header row!
+                                    headerRowIdx = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Extract objects starting from detected header row
+                        const headers = rawMatrix[headerRowIdx].map(h => String(h).trim());
+                        const resultObjects = [];
+
+                        for (let r = headerRowIdx + 1; r < rawMatrix.length; r++) {
+                            const row = rawMatrix[r];
+                            if (!row || row.every(cell => String(cell).trim() === "")) continue; // skip blank lines
+
+                            let obj = {};
+                            headers.forEach((h, colIdx) => {
+                                if (h) obj[h] = row[colIdx] !== undefined ? row[colIdx] : "";
+                            });
+                            resultObjects.push(obj);
+                        }
+
+                        resolve(resultObjects);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = error => reject(error);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // --- AUDIT ENGINE EXECUTION ---
+        async function executeAuditEngine() {
+            const fileV = document.getElementById('file-vendor').files[0];
+            const fileH = document.getElementById('file-history').files[0];
+            const fileB = document.getElementById('file-batch').files[0];
+
+            if (!fileB && currentBatchRecords.length === 0) {
+                alert("Please select a '3. Current Batch Stream' file or click 'Load Sample Test Batch'!");
+                return;
+            }
+
+            // 1. Process Master Vendor File if provided
+            vendorMasterSet.clear();
+            if (fileV) {
+                try {
+                    const rows = await parseSpreadsheet(fileV);
+                    rows.forEach(r => {
+                        const vKey = findKey(r, ['vendor id', 'vendorid', 'vendor']);
+                        if (vKey && r[vKey]) vendorMasterSet.add(String(r[vKey]).trim());
+                    });
+                } catch (e) {
+                    console.error("Error parsing vendor file:", e);
+                }
+            } else {
+                // Default registered vendor
+                vendorMasterSet.add("VND-001");
+            }
+
+            // 2. Process Historical Transactions File if provided
+            historicalInvoiceSet.clear();
+            if (fileH) {
+                try {
+                    const rows = await parseSpreadsheet(fileH);
+                    rows.forEach(r => {
+                        const invKey = findKey(r, ['invoice ref', 'invoice', 'invoiceref', 'invoice #']);
+                        if (invKey && r[invKey]) historicalInvoiceSet.add(String(r[invKey]).trim());
+                    });
+                } catch (e) {
+                    console.error("Error parsing history file:", e);
+                }
+            } else {
+                // Default historical invoices
+                historicalInvoiceSet.add("INV-8801");
+                historicalInvoiceSet.add("INV-8802");
+            }
+
+            // 3. Process Batch Stream File if uploaded
+            if (fileB) {
+                try {
+                    currentBatchRecords = await parseSpreadsheet(fileB);
+                } catch (e) {
+                    alert("Failed to parse batch spreadsheet file: " + e.message);
+                    return;
+                }
+            }
+
+            processBatchAndRender();
+        }
+
+        // Helper to find case-insensitive key matches
+        function findKey(obj, keywords) {
+            const keys = Object.keys(obj);
+            for (let kw of keywords) {
+                const found = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === kw.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                if (found) return found;
+            }
+            return keys[0] || null;
+        }
+
+        // --- CORE RISK SCORING ALGORITHM ---
+        function processBatchAndRender() {
+            const exposureLimit = parseFloat(document.getElementById('limit-exposure').value) || 1000;
+            processedAuditLedger = [];
+
+            let totalParsed = 0;
+            let sumTotal = 0;
+            let countMid = 0;
+            let countHigh = 0;
+
+            currentBatchRecords.forEach((row, idx) => {
+                const invKey = findKey(row, ['invoiceref', 'invoice', 'invoice#', 'invoicenumber']);
+                const vendorKey = findKey(row, ['vendorid', 'vendor', 'vendor#']);
+                const amtKey = findKey(row, ['amount', 'amount$', 'txamount']);
+                const hourKey = findKey(row, ['hour', 'time', 'timestamp', 'hour023']);
+
+                const invRef = row[invKey] ? String(row[invKey]).trim() : `INV-AUTO-${idx+1}`;
+                const vendorId = row[vendorKey] ? String(row[vendorKey]).trim() : `VND-UNKNOWN`;
+
+                // Parse numeric amount safely
+                let rawAmt = String(row[amtKey] || 0).replace(/[^0-9.-]+/g, "");
+                const amt = parseFloat(rawAmt) || 0;
+
+                // Parse hour safely (supports 0-23 or time strings like "20:15")
+                let hour = 12;
+                if (row[hourKey] !== undefined) {
+                    let hVal = String(row[hourKey]).trim();
+                    if (hVal.includes(":")) {
+                        hour = parseInt(hVal.split(":")[0]) || 12;
+                    } else {
+                        hour = parseInt(hVal) || 0;
+                    }
+                }
+
+                // SCORING RULES MATRIX
+                let score = 0;
+                let flags = [];
+
+                // Rule 1: Unregistered Vendor (+50)
+                if (!vendorMasterSet.has(vendorId)) {
+                    score += 50;
+                    flags.push("Unregistered Vendor (+50)");
+                }
+
+                // Rule 2: Duplicate Invoice (+40)
+                if (historicalInvoiceSet.has(invRef)) {
+                    score += 40;
+                    flags.push("Duplicate Invoice Ref (+40)");
+                }
+
+                // Rule 3: Off-Hours Transaction (+20) -> outside 7 AM (7) to 7 PM (19)
+                if (hour < 7 || hour >= 19) {
+                    score += 20;
+                    flags.push(`Off-Hours [${hour}:00] (+20)`);
+                }
+
+                // Rule 4: Over Exposure Limit (+10)
+                if (amt > exposureLimit) {
+                    score += 10;
+                    flags.push(`Over Limit > $${exposureLimit} (+10)`);
+                }
+
+                // Audit Classification
+                let status = "Standard / Ideal";
+                let statusCategory = "IDEAL"; // IDEAL, MID, HIGH
+
+                if (score >= 50) {
+                    status = "Verification Required";
+                    statusCategory = "HIGH";
+                    countHigh++;
+                } else if (score >= 20) {
+                    status = "Anomaly Detected";
+                    statusCategory = "MID";
+                    countMid++;
+                }
+
+                totalParsed++;
+                sumTotal += amt;
+
+                processedAuditLedger.push({
+                    invRef,
+                    vendorId,
+                    amt,
+                    hour,
+                    score,
+                    status,
+                    statusCategory,
+                    flags
+                });
+            });
+
+            // Update Top Stats Metrics
+            document.getElementById('stat-total-tx').innerText = totalParsed;
+            document.getElementById('stat-sum-total').innerText = "$" + sumTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('stat-mid-risk').innerText = countMid;
+            document.getElementById('stat-high-risk').innerText = countHigh;
+
+            // Render Table and Charts
+            filterTableData();
+            updateCharts(totalParsed - countMid - countHigh, countMid, countHigh);
+        }
+
+        // --- TABLE FILTER & RENDER ---
+        function filterTableData() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const cat = document.getElementById('filter-category').value;
+            const tbody = document.getElementById('ledger-tbody');
+
+            tbody.innerHTML = "";
+
+            const filtered = processedAuditLedger.filter(item => {
+                const matchesSearch = item.invRef.toLowerCase().includes(query) ||
+                                      item.vendorId.toLowerCase().includes(query) ||
+                                      item.status.toLowerCase().includes(query);
+
+                const matchesCat = (cat === "ALL") ||
+                                   (cat === "IDEAL" && item.score < 20) ||
+                                   (cat === "MID" && item.score >= 20 && item.score < 50) ||
+                                   (cat === "HIGH" && item.score >= 50);
+
+                return matchesSearch && matchesCat;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-10 text-center text-slate-400">
+                            No matching audit records found.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-navy-700/50 transition border-b border-navy-500/30";
+
+                let badgeCss = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+                if (item.score >= 50) {
+                    badgeCss = "bg-rose-500/10 text-rose-400 border-rose-500/30 font-semibold";
+                } else if (item.score >= 20) {
+                    badgeCss = "bg-amber-500/10 text-amber-400 border-amber-500/30";
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-medium text-slate-200">${item.invRef}</td>
+                    <td class="py-3 px-4 font-mono text-slate-300">${item.vendorId}</td>
+                    <td class="py-3 px-4 text-right font-mono font-semibold text-white">$${item.amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="py-3 px-4 text-center text-slate-400 font-mono">${String(item.hour).padStart(2, '0')}:00</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-block px-2 py-0.5 rounded font-mono font-bold text-xs ${item.score >= 50 ? 'text-rose-400 bg-rose-950/60' : item.score >= 20 ? 'text-amber-400 bg-amber-950/60' : 'text-emerald-400 bg-emerald-950/60'}">
+                            ${item.score}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] border ${badgeCss}">
+                            <span class="w-1.5 h-1.5 rounded-full ${item.score >= 50 ? 'bg-rose-500' : item.score >= 20 ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+                            ${item.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-slate-400 text-[11px]">
+                        ${item.flags.length > 0 ? item.flags.map(f => `<span class="inline-block bg-navy-800 text-slate-300 px-2 py-0.5 rounded border border-navy-500 mr-1 mb-1">${f}</span>`).join('') : '<span class="text-slate-500 italic">None (Ideal Conditions)</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- CHART JS SETUP ---
+        function initCharts() {
+            // Distribution Doughnut Chart
+            const ctxDist = document.getElementById('chartDistribution').getContext('2d');
+            chartDist = new Chart(ctxDist, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Standard / Ideal', 'Anomaly Detected', 'Verification Required'],
+                    datasets: [{
+                        data: [1, 0, 0],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { size: 11 } }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Score Density Spectrum Bar Chart
+            const ctxSpec = document.getElementById('chartSpectrum').getContext('2d');
+            chartSpec = new Chart(ctxSpec, {
+                type: 'bar',
+                data: {
+                    labels: ['0-20', '21-40', '41-60', '61-80', '81-100+'],
+                    datasets: [{
+                        label: 'Transaction Count',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8', font: { size: 10 } },
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                        },
+                        y: {
+                            ticks: { color: '#94a3b8', font: { size: 10 }, stepSize: 1 },
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts(idealCount, midCount, highCount) {
+            if (chartDist) {
+                chartDist.data.datasets[0].data = [idealCount, midCount, highCount];
+                chartDist.update();
+            }
+
+            if (chartSpec) {
+                // Calculate score density spectrum buckets
+                const buckets = [0, 0, 0, 0, 0];
+                processedAuditLedger.forEach(item => {
+                    const s = item.score;
+                    if (s <= 20) buckets[0]++;
+                    else if (s <= 40) buckets[1]++;
+                    else if (s <= 60) buckets[2]++;
+                    else if (s <= 80) buckets[3]++;
+                    else buckets[4]++;
+                });
+
+                chartSpec.data.datasets[0].data = buckets;
+                chartSpec.update();
+            }
+        }
+
+        // --- SAMPLE TEST DATA GENERATOR ---
+        function loadSampleData() {
+            vendorMasterSet.clear();
+            vendorMasterSet.add("VND-001");
+
+            historicalInvoiceSet.clear();
+            historicalInvoiceSet.add("INV-8801");
+            historicalInvoiceSet.add("INV-8802");
+
+            currentBatchRecords = [
+                { "Batch TX ID": "BTX-101", "Date": "2026-10-03", "Hour": 8,  "Vendor ID": "VND-001", "Invoice Ref": "INV-9001", "Amount": 250.00 },
+                { "Batch TX ID": "BTX-102", "Date": "2026-10-03", "Hour": 14, "Vendor ID": "VND-001", "Invoice Ref": "INV-9002", "Amount": 780.00 },
+                { "Batch TX ID": "BTX-103", "Date": "2026-10-03", "Hour": 10, "Vendor ID": "VND-001", "Invoice Ref": "INV-9003", "Amount": 1250.00 },
+                { "Batch TX ID": "BTX-104", "Date": "2026-10-03", "Hour": 9,  "Vendor ID": "VND-001", "Invoice Ref": "INV-8801", "Amount": 450.00 },
+                { "Batch TX ID": "BTX-105", "Date": "2026-10-03", "Hour": 20, "Vendor ID": "VND-001", "Invoice Ref": "INV-9004", "Amount": 420.00 },
+                { "Batch TX ID": "BTX-106", "Date": "2026-10-03", "Hour": 20, "Vendor ID": "VND-001", "Invoice Ref": "INV-9005", "Amount": 1400.00 },
+                { "Batch TX ID": "BTX-107", "Date": "2026-10-03", "Hour": 11, "Vendor ID": "VND-999", "Invoice Ref": "INV-9006", "Amount": 500.00 },
+                { "Batch TX ID": "BTX-108", "Date": "2026-10-03", "Hour": 23, "Vendor ID": "VND-001", "Invoice Ref": "INV-8802", "Amount": 820.00 },
+                { "Batch TX ID": "BTX-109", "Date": "2026-10-03", "Hour": 22, "Vendor ID": "VND-888", "Invoice Ref": "INV-9007", "Amount": 1800.00 },
+                { "Batch TX ID": "BTX-110", "Date": "2026-10-03", "Hour": 4,  "Vendor ID": "VND-777", "Invoice Ref": "INV-8801", "Amount": 2100.00 }
+            ];
+
+            // Update UI label
+            document.getElementById('label-batch').innerText = "Loaded 10 Sample Audit Records";
+            document.getElementById('label-batch').classList.remove('text-slate-400');
+            document.getElementById('label-batch').classList.add('text-emerald-400', 'font-medium');
+
+            processBatchAndRender();
+        }
+    </script>
+</body>
+</html>
